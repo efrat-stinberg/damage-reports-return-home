@@ -1,0 +1,22 @@
+{
+  "name": "architecture",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js",
+    "demo": "SEED_DEMO=1 node server.js",
+    "seed": "node seed.js",
+    "check:boundaries": "node tools/check-boundaries.js",
+    "logs": "node tools/process-logs.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@fontsource/heebo": "^5.3.0",
+    "pdfkit": "^0.20.2"
+  }
+}

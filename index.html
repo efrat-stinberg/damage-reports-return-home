@@ -1,0 +1,804 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>דיווחי נזק</title>
+<style>
+  :root {
+    --bg: #f4f6fa; --card: #fff; --text: #1f2937; --muted: #6b7280; --border: #e5e7eb;
+    --primary: #2563eb; --primary-dark: #1d4ed8;
+    --new-bg: #dbeafe; --new-fg: #1e40af; --rev-bg: #fef3c7; --rev-fg: #92400e;
+    --danger: #dc2626; --ok: #16a34a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0f172a; --card: #1e293b; --text: #f1f5f9; --muted: #94a3b8; --border: #334155;
+      --new-bg: #1e3a8a; --new-fg: #bfdbfe; --rev-bg: #78350f; --rev-fg: #fde68a; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); }
+  header { background: var(--card); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 5; }
+  .bar { max-width: 960px; margin: 0 auto; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .brand { font-weight: 700; font-size: 18px; }
+  nav { display: flex; gap: 6px; }
+  nav a { padding: 8px 14px; border-radius: 8px; color: var(--muted); text-decoration: none; font-weight: 500; }
+  nav a:hover { background: var(--bg); }
+  nav a.active { background: var(--primary); color: #fff; }
+  main { max-width: 960px; margin: 0 auto; padding: 24px 20px 60px; }
+  h2 { margin: 0 0 16px; font-size: 22px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; align-items: center; }
+  .toolbar input { flex: 1; min-width: 180px; }
+  input, select, textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font: inherit; background: var(--card); color: var(--text); }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--primary); outline-offset: -1px; }
+  .toolbar select { width: auto; }
+  .btn { display: inline-block; padding: 10px 16px; border: 0; border-radius: 8px; background: var(--primary); color: #fff; font: inherit; font-weight: 600; cursor: pointer; text-decoration: none; }
+  .btn:hover { background: var(--primary-dark); }
+  .btn:disabled { opacity: .6; cursor: wait; }
+  .btn.ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  .btn.ghost:hover { background: var(--bg); }
+  .list { display: grid; gap: 12px; }
+  .item { display: block; text-decoration: none; color: inherit; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; transition: .15s; }
+  .item:hover { border-color: var(--primary); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,.08); }
+  .item .top { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .item .title { font-weight: 600; }
+  .item .meta { color: var(--muted); font-size: 14px; }
+  .item .desc { margin-top: 6px; font-size: 14px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .badge { padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+  .badge.NEW { background: var(--new-bg); color: var(--new-fg); }
+  .badge.IN_REVIEW { background: var(--rev-bg); color: var(--rev-fg); }
+  .badge.REHAB_IN_PROGRESS { background: #ffedd5; color: #9a3412; }
+  .badge.REHAB_COMPLETED { background: #dcfce7; color: #166534; }
+  .item { padding: 0; }
+  .item-link { display: block; padding: 16px; color: inherit; text-decoration: none; }
+  .item-actions { padding: 0 16px 14px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .toolbar input[type=checkbox] { flex: none; min-width: 0; }
+  .tbl { width: 100%; min-width: 1200px; border-collapse: collapse; font-size: 14px; }
+  .tbl td:nth-child(5) { min-width: 220px; }
+  .tbl th, .tbl td { padding: 10px 12px; border-bottom: 1px solid var(--border); text-align: right; vertical-align: top; }
+  .tbl th { background: var(--bg); color: var(--muted); font-weight: 600; white-space: nowrap; }
+  .mono { font-family: monospace; font-size: 12px; word-break: break-all; min-width: 120px; }
+  .badge.FAILED { background: #fee2e2; color: #991b1b; }
+  .summary { margin-bottom: 16px; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+  .tile { background: var(--bg); border-radius: 10px; padding: 12px; text-align: center; }
+  .tile .n { font-size: 28px; font-weight: 700; }
+  .tile .l { font-size: 13px; color: var(--muted); }
+  .modal { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; z-index: 20; padding: 16px; }
+  .modal .box { background: var(--card); border-radius: 14px; padding: 32px 36px; text-align: center; min-width: 280px; max-width: 420px; box-shadow: 0 10px 40px rgba(0,0,0,.3); }
+  .modal .spinner { width: 44px; height: 44px; margin-bottom: 16px; }
+  .modal h3 { margin: 0 0 8px; }
+  .icon-btn { border: 0; background: transparent; font-size: 22px; cursor: pointer; padding: 2px 6px; border-radius: 8px; }
+  .icon-btn:hover { background: var(--bg); }
+  .bulk { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .btn.small { padding: 7px 12px; font-size: 14px; }
+  .field { margin-bottom: 16px; }
+  label { display: block; font-weight: 600; font-size: 14px; margin-bottom: 6px; }
+  .field.invalid input, .field.invalid select, .field.invalid textarea { border-color: var(--danger); }
+  .error { color: var(--danger); font-size: 13px; margin-top: 4px; min-height: 0; }
+  .actions { display: flex; gap: 10px; margin-top: 8px; }
+  dl { display: grid; grid-template-columns: 140px 1fr; gap: 12px 16px; margin: 0 0 20px; }
+  dt { color: var(--muted); font-weight: 600; font-size: 14px; }
+  dd { margin: 0; white-space: pre-wrap; word-break: break-word; }
+  .status-box { border-top: 1px solid var(--border); padding-top: 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .seg button { padding: 8px 14px; border: 0; background: var(--card); color: var(--text); font: inherit; cursor: pointer; }
+  .seg button + button { border-left: 1px solid var(--border); }
+  .seg button.on { background: var(--primary); color: #fff; font-weight: 600; }
+  .empty, .loading { text-align: center; padding: 48px 16px; color: var(--muted); }
+  .empty .big { font-size: 40px; }
+  .spinner { width: 28px; height: 28px; border: 3px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin .7s linear infinite; margin: 0 auto 10px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #toast { position: fixed; bottom: 24px; left: 50%; transform: translate(-50%, 20px); background: #111827; color: #fff; padding: 12px 20px; border-radius: 8px; opacity: 0; pointer-events: none; transition: .25s; z-index: 10; }
+  #toast.show { opacity: 1; transform: translate(-50%, 0); }
+  #toast.err { background: var(--danger); }
+  @media (max-width: 520px) { dl { grid-template-columns: 1fr; gap: 2px; } dt { margin-top: 10px; } .brand { font-size: 16px; } }
+  .home { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+  .home .card { text-align: center; padding: 32px 20px; }
+  .home .big { font-size: 44px; }
+  .home p { color: var(--muted); }
+  .login { max-width: 400px; margin: 0 auto; }
+  .check { display: flex; align-items: center; gap: 10px; font-weight: 500; cursor: pointer; }
+  .who { color: var(--muted); font-size: 14px; padding: 0 8px; align-self: center; white-space: nowrap; }
+  .check input { width: auto; }
+  .check input.radio { margin: 0; }
+  .rehab { padding: 12px 16px; border-radius: 10px; font-weight: 700; margin-bottom: 16px; }
+  .rehab.ready { background: #dcfce7; color: #166534; }
+  .rehab.missing { background: var(--rev-bg); color: var(--rev-fg); }
+  .rehab small { display: block; font-weight: 400; margin-top: 4px; }
+  .hint { color: var(--muted); font-size: 13px; margin-top: 6px; }
+  .ok-box { text-align: center; padding: 40px 20px; }
+  .ok-box .big { font-size: 48px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <a class="brand" href="#/" style="text-decoration:none;color:inherit">🛠️ דיווחי נזק</a>
+    <nav id="nav"></nav>
+  </div>
+</header>
+<main id="app"></main>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+const app = document.getElementById('app');
+let STATUSES = [];
+let LABEL = {};
+let META = { damageTypes: [], rules: {} };
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const badge = (s) => `<span class="badge ${s}">${LABEL[s] || s}</span>`;
+
+// ---------- session (staff) ----------
+const getToken = () => { try { return localStorage.getItem('staffToken'); } catch { return null; } };
+const setToken = (t) => { try { t ? localStorage.setItem('staffToken', t) : localStorage.removeItem('staffToken'); } catch {} if (!t) ME = null; };
+let ME = null; // the logged-in user { id, fullName, username }
+// Where to go after logging in (the page that asked for a login).
+const afterLogin = { set: (hash) => { try { sessionStorage.setItem('afterLogin', hash); } catch {} }, take: () => { try { const v = sessionStorage.getItem('afterLogin'); sessionStorage.removeItem('afterLogin'); return v; } catch { return null; } } };
+const needLogin = () => { afterLogin.set(location.hash); location.hash = '#/staff/login'; };
+
+let toastTimer;
+function toast(msg, isErr) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show' + (isErr ? ' err' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => (t.className = ''), 2800);
+}
+
+class ApiError extends Error { constructor(msg, status, fields) { super(msg); this.status = status; this.fields = fields; } }
+
+async function api(method, url, body) {
+  const headers = { 'Content-Type': 'application/json' };
+  const tok = getToken();
+  if (tok) headers.Authorization = 'Bearer ' + tok;
+  const res = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    if (res.status === 401 && tok && url !== '/auth/login') { setToken(null); renderNav(); }
+    throw new ApiError(res.status === 404 ? 'הפנייה לא נמצאה' : (data.error || 'הפעולה נכשלה'), res.status, data.fields);
+  }
+  return data;
+}
+
+const loading = () => (app.innerHTML = '<div class="loading"><div class="spinner"></div>טוען…</div>');
+
+function renderNav() {
+  const staff = !!getToken();
+  document.getElementById('nav').innerHTML = staff
+    ? `<a href="#/staff" data-n="staff">פניות</a><a href="#/assessors" data-n="assessors">פורטל שמאים</a><a href="#/municipal" data-n="municipal">פורטל רשויות</a><a href="#/staff/notifications" data-n="notifications">מרכז הודעות</a><a href="#/staff/processes" data-n="processes">Settlement Processes</a><a href="#/staff/health" data-n="health">System Health</a>${ME ? `<span class="who" id="who">👤 ${esc(ME.fullName)}</span>` : ''}<a href="#" id="logout">יציאה</a>`
+    : `<a href="#/new" data-n="new">הגשת פנייה</a><a href="#/staff/login" data-n="login">כניסה למערכת</a>`;
+  const lo = document.getElementById('logout');
+  if (lo) lo.onclick = async (e) => {
+    e.preventDefault();
+    try { await api('POST', '/auth/logout'); } catch {}
+    setToken(null); renderNav(); location.hash = '#/';
+  };
+}
+function setNav(id) {
+  document.querySelectorAll('#nav a[data-n]').forEach((a) => a.classList.toggle('active', a.dataset.n === id));
+}
+
+// ---------- Home ----------
+function homeView() {
+  setNav('');
+  app.innerHTML = `<h2>ברוכים הבאים</h2>
+    <div class="home">
+      <div class="card"><div class="big">🏠</div><h3>אזרחים</h3>
+        <p>נתקלתם בנזק לבית או לרכוש? הגישו פנייה חדשה.</p>
+        <a class="btn" href="#/new">הגשת פנייה חדשה</a></div>
+      <div class="card"><div class="big">📐</div><h3>שמאים</h3>
+        <p>הזנת הערכת נזק מקצועית למבנים.</p>
+        <a class="btn ghost" href="#/assessors">פורטל שמאים</a></div>
+      <div class="card"><div class="big">🏙️</div><h3>רשויות מקומיות</h3>
+        <p>אישור מוכנות תשתיות וסביבה למבנים.</p>
+        <a class="btn ghost" href="#/municipal">פורטל רשויות מקומיות</a></div>
+      <div class="card"><div class="big">🏛️</div><h3>צוות משרד השיכון</h3>
+        <p>צפייה בפניות וטיפול בהן.</p>
+        <a class="btn ghost" href="#/staff">כניסת צוות</a></div>
+    </div>`;
+}
+
+// ---------- Citizen: create ----------
+function fieldErr(name, v) {
+  const r = META.rules[name];
+  v = (v || '').trim().replace(/\s+/g, ' ');
+  if (!v) return 'שדה חובה';
+  if (name === 'familyEmail') return v.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? '' : 'כתובת אימייל לא תקינה';
+  if (name === 'apartmentCount') return /^\d+$/.test(v) && +v >= 1 && +v <= 500 ? '' : 'מספר שלם בין 1 ל-500';
+  if (name === 'damageType') return META.damageTypes.includes(v) ? '' : 'סוג נזק לא חוקי';
+  if (r && v.length < r.min) return `לפחות ${r.min} תווים (הוזנו ${v.length})`;
+  if (r && v.length > r.max) return `עד ${r.max} תווים (הוזנו ${v.length})`;
+  if (name === 'reporterName' && !/^[\p{L}][\p{L}\s'".\-]*$/u.test(v)) return 'השם יכול להכיל אותיות בלבד';
+  return '';
+}
+
+function createView() {
+  setNav('new');
+  app.innerHTML = `<h2>הגשת פנייה חדשה</h2>
+    <form id="f" class="card" novalidate>
+      <div class="field"><label for="reporterName">שם מלא</label>
+        <input id="reporterName" name="reporterName" autocomplete="name" maxlength="60" placeholder="לדוגמה: דנה כהן"><div class="error"></div></div>
+      <div class="field"><label for="address">כתובת הנכס</label>
+        <input id="address" name="address" autocomplete="street-address" maxlength="120" placeholder="רחוב, מספר, עיר"><div class="error"></div></div>
+      <div class="field"><label for="familyEmail">אימייל המשפחה</label>
+        <input id="familyEmail" name="familyEmail" type="email" autocomplete="email" dir="ltr" style="text-align:right" maxlength="254" placeholder="family@example.com"><div class="hint">לשם שליחת עדכון על חזרה לבית</div><div class="error"></div></div>
+      <div class="field"><label for="damageType">סוג הנזק</label>
+        <select id="damageType" name="damageType"><option value="">בחר סוג…</option>
+          ${META.damageTypes.map((t) => `<option>${esc(t)}</option>`).join('')}</select><div class="error"></div></div>
+      <div class="field"><label for="apartmentCount">מספר דירות במבנה</label>
+        <input id="apartmentCount" name="apartmentCount" type="number" inputmode="numeric" min="1" max="500" step="1" placeholder="לדוגמה: 12"><div class="error"></div></div>
+      <div class="field">
+        <label class="check"><input type="checkbox" name="hasDamagePhotos"> קיימות תמונות נזק</label>
+        <label class="check" style="margin-top:8px"><input type="checkbox" name="hasEngineerReport"> קיים דו"ח מהנדס</label></div>
+      <div class="field"><label for="description">תיאור</label>
+        <textarea id="description" name="description" rows="5" maxlength="1000" placeholder="תארו מה קרה ומה ניזוק (לפחות 10 תווים)"></textarea>
+        <div class="hint" id="cnt"></div><div class="error"></div></div>
+      <div class="actions"><button class="btn" id="submit">שלח פנייה</button><a class="btn ghost" href="#/">ביטול</a></div>
+    </form>`;
+  const form = document.getElementById('f');
+  const show = (el, msg) => {
+    el.closest('.field').classList.toggle('invalid', !!msg);
+    el.closest('.field').querySelector('.error').textContent = msg;
+    return !msg;
+  };
+  const check = (el) => show(el, fieldErr(el.name, el.value));
+  const cnt = document.getElementById('cnt'), desc = document.getElementById('description');
+  const updCnt = () => (cnt.textContent = `${desc.value.length}/${META.rules.description.max}`);
+  updCnt();
+  form.querySelectorAll('input:not([type=checkbox]),select,textarea').forEach((el) => {
+    el.addEventListener('blur', () => check(el));
+    el.addEventListener('input', () => { if (el === desc) updCnt(); if (el.closest('.field').classList.contains('invalid')) check(el); });
+  });
+  document.getElementById('reporterName').focus();
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    const fields = [...form.querySelectorAll('input:not([type=checkbox]),select,textarea')];
+    const ok = fields.map(check).every(Boolean);
+    if (!ok) { fields.find((el) => el.closest('.field').classList.contains('invalid')).focus(); return; }
+    const btn = document.getElementById('submit');
+    btn.disabled = true; btn.textContent = 'שולח…';
+    try {
+      const r = await api('POST', '/reports', {
+        ...Object.fromEntries(new FormData(form)),
+        apartmentCount: Number(form.apartmentCount.value),
+        hasDamagePhotos: form.hasDamagePhotos.checked,
+        hasEngineerReport: form.hasEngineerReport.checked,
+      });
+      location.hash = '#/submitted/' + r.id;
+    } catch (err) {
+      if (err.fields) fields.forEach((el) => err.fields[el.name] && show(el, err.fields[el.name]));
+      toast(err.message, true);
+      btn.disabled = false; btn.textContent = 'שלח פנייה';
+    }
+  };
+}
+
+function submittedView(id) {
+  setNav('new');
+  app.innerHTML = `<div class="card ok-box"><div class="big">✅</div>
+    <h2>הפנייה התקבלה</h2>
+    <p>הפנייה הועברה לטיפול צוות משרד השיכון.<br>מספר פנייה לשמירה:</p>
+    <p dir="ltr" style="font-family:monospace;font-size:14px;word-break:break-all">${esc(id)}</p>
+    <a class="btn" href="#/new">הגשת פנייה נוספת</a></div>`;
+}
+
+// ---------- Staff: login ----------
+function loginView() {
+  if (getToken()) { location.hash = afterLogin.take() || '#/staff'; return; }
+  setNav('login');
+  app.innerHTML = `<div class="login"><h2>כניסה למערכת</h2>
+    <form id="lf" class="card">
+      <div class="field"><label for="username">שם משתמש</label><input id="username" autocomplete="username" value="staff"></div>
+      <div class="field"><label for="password">סיסמה</label><input id="password" type="password" autocomplete="current-password" value="housing123"><div class="error" id="lerr"></div>
+        <div class="hint">ברירת מחדל לדוגמה (staff). משתמשים נוספים: assessor / assessor123, municipal / municipal123</div></div>
+      <div class="actions"><button class="btn" id="lbtn">כניסה</button><a class="btn ghost" href="#/">ביטול</a></div>
+    </form></div>`;
+  document.getElementById('username').focus();
+  document.getElementById('lf').onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('lbtn'); btn.disabled = true;
+    try {
+      const { token, user } = await api('POST', '/auth/login', {
+        username: document.getElementById('username').value,
+        password: document.getElementById('password').value,
+      });
+      setToken(token); ME = user; renderNav(); location.hash = afterLogin.take() || '#/staff';
+    } catch (err) {
+      document.getElementById('lerr').textContent = err.message;
+      btn.disabled = false;
+    }
+  };
+}
+
+// ---------- Staff: list ----------
+async function listView() {
+  setNav('staff'); loading();
+  const reports = (await api('GET', '/reports')).reverse(); // newest first
+  if (!reports.length) {
+    app.innerHTML = `<div class="card empty"><div class="big">📋</div><p>עדיין אין פניות.</p></div>`;
+    return;
+  }
+  app.innerHTML = `<h2>פניות <span class="meta" style="color:var(--muted);font-size:16px" id="count"></span></h2>
+    <div class="toolbar">
+      <input id="q" type="search" placeholder="חיפוש לפי שם, כתובת, סוג נזק או תיאור…" aria-label="חיפוש">
+      <select id="flt" aria-label="סינון לפי סטטוס">
+        <option value="">כל הסטטוסים</option>
+        ${STATUSES.map((s) => `<option value="${s}">${LABEL[s]}</option>`).join('')}
+      </select>
+      <select id="city" aria-label="סינון לפי ישוב">
+        <option value="">כל הישובים</option>
+        ${[...new Set(reports.map((r) => r.settlement).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'he')).map((c) => `<option>${esc(c)}</option>`).join('')}
+      </select>
+      <label class="check" style="font-weight:500;white-space:nowrap"><input type="checkbox" id="queueOnly"> רק ממתינים בתור לעבודה</label>
+      <label class="check" style="font-weight:500;white-space:nowrap"><input type="checkbox" id="budgetOnly"> רק מוכנים לשחרור תקציב</label>
+    </div>
+    <div id="summary"></div>
+    <div class="bulk"><button class="btn" id="bulkBtn"></button><a class="btn ghost" href="#/staff/notifications">📨 מרכז הודעות</a><span class="hint" id="bulkInfo" style="margin:0"></span></div>
+    <div class="list" id="items"></div>`;
+  const city = document.getElementById('city'), bulkBtn = document.getElementById('bulkBtn');
+  const q = document.getElementById('q'), flt = document.getElementById('flt'), queueOnly = document.getElementById('queueOnly');
+  const budgetOnly = document.getElementById('budgetOnly');
+  const inQueue = (r) => r.rehabilitation.inWorkQueue;
+  const budgetReady = (r) => r.budget.readyForRelease;
+  // Settlement summary (all buildings of the chosen settlement); the categories are computed by the server.
+  function renderSummary() {
+    const box = document.getElementById('summary');
+    if (!city.value) { box.innerHTML = ''; return; }
+    const inCity = reports.filter((r) => r.settlement === city.value);
+    const count = (c) => inCity.filter((r) => r.settlementOpening.category === c).length;
+    const eligible = count('ELIGIBLE');
+    const tile = (label, n, color) => `<div class="tile"><div class="n" style="color:${color || 'var(--text)'}">${n}</div><div class="l">${label}</div></div>`;
+    box.innerHTML = `<div class="card summary"><h3 style="margin:0 0 12px">מצב היישוב – ${esc(city.value)}</h3><div class="tiles">
+      ${tile('סה"כ מבנים ביישוב', inCity.length)}
+      ${tile('כשירים לפתיחת יישוב', eligible, 'var(--ok)')}
+      ${tile('עדיין לא כשירים', inCity.length - eligible, 'var(--danger)')}
+      ${tile('ממתינים להערכת שמאי', count('AWAITING_ASSESSMENT'))}
+      ${tile('ממתינים לאישור הרשות המקומית', count('AWAITING_MUNICIPAL'))}
+      ${tile('לא כשירים מסיבות אחרות', count('OTHER'))}</div>
+      <div class="hint">מבנה שאינו כשיר נספר פעם אחת, לפי הסיבה הראשונה: שמאי, רשות מקומית, אחר.</div></div>`;
+  }
+  let shown = [];
+  function render() {
+    const term = q.value.toLowerCase();
+    shown = reports.filter((r) =>
+      (!flt.value || r.status === flt.value) &&
+      (!city.value || r.settlement === city.value) &&
+      (!queueOnly.checked || inQueue(r)) &&
+      (!budgetOnly.checked || budgetReady(r)) &&
+      [r.reporterName, r.address, r.damageType, r.description].join(' ').toLowerCase().includes(term));
+    document.getElementById('count').textContent = `(${shown.length})`;
+    renderSummary();
+    bulkBtn.textContent = city.value ? 'הפק תיקי אכלוס לכל היישוב' : 'הפק תיקי אכלוס לכל המבנים הזכאים';
+    const eligible = shown.filter((r) => r.returnHomePackage.canGenerate).length;
+    document.getElementById('bulkInfo').textContent = `${eligible} מבנים זכאים מתוך ${shown.length} המוצגים`;
+    document.getElementById('items').innerHTML = shown.length ? shown.map((r) => `
+      <div class="item" data-id="${r.id}">
+        <a class="item-link" href="#/staff/${r.id}">
+          <div class="top"><span class="title">${esc(r.damageType)} — ${esc(r.address)}</span>${badge(r.status)}</div>
+          <div class="meta">דווח על ידי ${esc(r.reporterName)}</div>
+          <div class="meta">ממתין בתור לעבודה: <strong>${inQueue(r) ? 'כן' : 'לא'}</strong> · מוכן לשחרור תקציב: <strong>${budgetReady(r) ? 'כן' : 'לא'}</strong></div>
+          <div class="meta" title="${esc(r.settlementOpening.blockers.length ? 'חסר: ' + r.settlementOpening.blockers.join(', ') : '')}">כשיר לפתיחת יישוב: <strong style="color:var(--${r.settlementOpening.eligible ? 'ok' : 'danger'})">${r.settlementOpening.eligible ? 'כן' : 'לא'}</strong></div>
+          <div class="desc">${esc(r.description)}</div>
+        </a>
+        ${r.returnHomePackage.canGenerate || r.returnHomePackage.file ? `<div class="item-actions">
+          ${r.returnHomePackage.canGenerate ? `<button class="btn small" data-pkg="${r.id}">הפק תיק אכלוס מחדש</button>` : ''}
+          ${r.returnHomePackage.file ? `<button class="icon-btn" title="פתח את התיק שהופק" aria-label="פתח את התיק שהופק" data-view="${esc(r.returnHomePackage.file.url)}">📄</button>
+            <button class="icon-btn" title="הורד את התיק" aria-label="הורד את התיק" data-download="${esc(r.returnHomePackage.file.url)}">⬇️</button>` : ''}
+        </div>` : ''}
+      </div>`).join('') : '<div class="card empty">לא נמצאו פניות התואמות לחיפוש.</div>';
+  }
+  // "Return home" package: generate on the server, then offer view / download of the PDF.
+  const fetchPdf = async (url) => {
+    const res = await fetch(url, { headers: { Authorization: 'Bearer ' + getToken() } });
+    if (!res.ok) throw new Error('פתיחת המסמך נכשלה');
+    return URL.createObjectURL(await res.blob());
+  };
+  document.getElementById('items').onclick = async (e) => {
+    const view = e.target.closest('[data-view]'), dl = e.target.closest('[data-download]'), gen = e.target.closest('[data-pkg]');
+    try {
+      if (view) {
+        const w = window.open('', '_blank'); // open synchronously to avoid popup blockers
+        try { const u = await fetchPdf(view.dataset.view); if (w) w.location = u; else window.open(u, '_blank'); }
+        catch (err) { if (w) w.close(); throw err; }
+      } else if (dl) {
+        const a = document.createElement('a');
+        a.href = await fetchPdf(dl.dataset.download); a.download = 'תיק-אכלוס-מחדש.pdf';
+        document.body.appendChild(a); a.click(); a.remove();
+      } else if (gen) {
+        gen.disabled = true; gen.textContent = 'מפיק מסמך…';
+        try {
+          const out = await api('POST', `/buildings/${gen.dataset.pkg}/return-home-package`);
+          reports.splice(0, reports.length, ...(await api('GET', '/reports')).reverse());
+          render();
+          if (['SENT', 'ALREADY_SENT'].includes(out.notification.status)) toast('תיק האכלוס מחדש הופק והודעה נשלחה למשפחה ✓');
+          else toast('תיק האכלוס הופק, אך שליחת ההודעה למשפחה נכשלה', true);
+        } catch (err) { gen.disabled = false; gen.textContent = 'הפק תיק אכלוס מחדש'; throw err; }
+      }
+    } catch (err) {
+      toast(err.message, true);
+      if (err.status === 401) needLogin();
+    }
+  };
+  // Bulk: run the existing single-building mechanism (the same API) for every eligible building in the current filter.
+  const modal = (html) => { let m = document.getElementById('modal'); if (!m) { m = document.createElement('div'); m.id = 'modal'; m.className = 'modal'; document.body.appendChild(m); } m.innerHTML = `<div class="box" role="dialog" aria-live="polite">${html}</div>`; return m; };
+  bulkBtn.onclick = async () => {
+    const targets = shown.filter((r) => r.returnHomePackage.canGenerate);
+    if (!targets.length) { toast('אין מבנים זכאים בסינון הנוכחי', true); return; }
+    modal('<div class="spinner"></div><h3>מפיק תיקים...</h3>');
+    // The server runs one SettlementProcess: the existing single-building generation for every eligible building.
+    let out;
+    try {
+      out = await api('POST', '/settlement-processes', { settlementName: city.value || null, buildingIds: targets.map((r) => r.id) });
+    } catch (err) {
+      document.getElementById('modal').remove();
+      if (err.status === 401) needLogin(); else toast(err.message, true);
+      return;
+    }
+    const ok = out.generated, failed = out.failed, notifFailed = out.notificationFailed || 0;
+    try { reports.splice(0, reports.length, ...(await api('GET', '/reports')).reverse()); render(); } catch {}
+    modal(`<div style="font-size:44px">✅</div><h3>ההפקה הושלמה</h3>
+      <p>הופקו ${ok} תיקי חזרה לבית${failed ? `<br><span style="color:var(--danger)">${failed} נכשלו</span>` : ''}${notifFailed ? `<br><span style="color:var(--danger)">בגלל כשל בשליחה, ${notifFailed} משפחות לא קיבלו הודעה (ניתן להפיק מחדש כדי לנסות שוב)</span>` : ''}</p>
+      <button class="btn" id="modalClose">סגירה</button>`);
+    document.getElementById('modalClose').onclick = () => document.getElementById('modal').remove();
+  };
+  city.onchange = render;
+  // Keep the screen up to date: other users/portals may change data that affects readiness.
+  listTimer = setInterval(async () => {
+    if (document.getElementById('modal')) return;
+    try { reports.splice(0, reports.length, ...(await api('GET', '/reports')).reverse()); render(); } catch {}
+  }, 8000);
+  q.oninput = render; flt.onchange = render; queueOnly.onchange = render; budgetOnly.onchange = render; render();
+}
+
+// ---------- Appraisers portal (no login in this MVP) ----------
+async function assessorsListView() {
+  setNav('assessors'); loading();
+  const rows = (await api('GET', '/assessor/buildings')).reverse();
+  app.innerHTML = `<h2>פורטל שמאים <span class="meta" style="color:var(--muted);font-size:16px">(${rows.length})</span></h2>
+    <p class="hint" style="margin-top:-8px">בחרו מבנה כדי להזין או לעדכן הערכת נזק.</p>
+    ${rows.length ? `<div class="list">${rows.map((r) => `
+      <a class="item item-link" href="#/assessors/${r.id}">
+        <div class="top"><span class="title">${esc(r.address)}</span>${badge(r.status)}</div>
+        <div class="meta">יישוב: <strong>${esc(r.settlement || '—')}</strong> · הערכת שמאי: <strong>${r.hasAssessment ? 'קיימת' : 'לא קיימת'}</strong></div>
+      </a>`).join('')}</div>` : '<div class="card empty">אין מבנים במערכת.</div>'}`;
+}
+
+async function assessorFormView(id) {
+  setNav('assessors'); loading();
+  const b = await api('GET', '/assessor/buildings/' + id);
+  const a = b.assessment || {};
+  const today = new Date().toISOString().slice(0, 10);
+  app.innerHTML = `<p><a href="#/assessors" style="color:var(--primary);text-decoration:none">→ חזרה לפורטל שמאים</a></p>
+    <h2>הערכת נזק – ${esc(b.address)}</h2>
+    <form id="af" class="card" novalidate>
+      <p class="meta" style="margin-top:0">יישוב: ${esc(b.settlement || '—')} · סטטוס טיפול: ${badge(b.status)}</p>
+      <div class="field"><label for="damageLevel">דרגת נזק</label>
+        <select id="damageLevel" name="damageLevel"><option value="">בחר…</option>
+          ${META.damageLevels.map((l) => `<option value="${l.value}" ${l.value === a.damageLevel ? 'selected' : ''}>${esc(l.label)}</option>`).join('')}</select><div class="error"></div></div>
+      <div class="field"><label for="inspectionDate">תאריך בדיקה</label>
+        <input id="inspectionDate" name="inspectionDate" type="date" max="${today}" value="${esc(a.inspectionDate || today)}"><div class="error"></div></div>
+      <div class="field"><label for="notes">הערות שמאי</label>
+        <textarea id="notes" name="notes" rows="4" maxlength="1000">${esc(a.notes || '')}</textarea><div class="error"></div></div>
+      <div class="field"><label class="check"><input type="checkbox" id="requiresReinspection" ${a.requiresReinspection ? 'checked' : ''}> נדרשת בדיקה חוזרת</label><div class="error"></div></div>
+      <div class="actions"><button class="btn" id="asave">${b.hasAssessment ? 'עדכון הערכה' : 'שמירת הערכה'}</button><a class="btn ghost" href="#/assessors">ביטול</a></div>
+    </form>`;
+  const form = document.getElementById('af');
+  const showErrors = (fields = {}) => form.querySelectorAll('.field').forEach((f) => {
+    const el = f.querySelector('[name],#requiresReinspection'); const key = el.name || el.id;
+    f.classList.toggle('invalid', !!fields[key]); f.querySelector('.error').textContent = fields[key] || '';
+  });
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('asave'); btn.disabled = true;
+    try {
+      await api('PUT', `/assessor/buildings/${id}/assessment`, {
+        damageLevel: form.damageLevel.value, inspectionDate: form.inspectionDate.value, notes: form.notes.value,
+        requiresReinspection: form.requiresReinspection.checked,
+      });
+      toast('הערכת השמאי נשמרה ✓'); location.hash = '#/assessors';
+    } catch (err) { showErrors(err.fields); toast(err.message, true); btn.disabled = false; }
+  };
+}
+
+// ---------- Local authorities portal (no login in this MVP) ----------
+async function municipalListView() {
+  setNav('municipal'); loading();
+  const rows = (await api('GET', '/municipal/buildings')).reverse();
+  const approvalText = (r) => (r.hasApproval ? 'אושר' : r.hasRecord ? 'עודכן – לא אושר' : 'לא קיים');
+  app.innerHTML = `<h2>פורטל רשויות מקומיות <span class="meta" style="color:var(--muted);font-size:16px">(${rows.length})</span></h2>
+    <p class="hint" style="margin-top:-8px">בחרו מבנה כדי לעדכן את מצב התשתיות והסביבה.</p>
+    ${rows.length ? `<div class="list">${rows.map((r) => `
+      <a class="item item-link" href="#/municipal/${r.id}">
+        <div class="top"><span class="title">${esc(r.address)}</span>${badge(r.status)}</div>
+        <div class="meta">יישוב: <strong>${esc(r.settlement || '—')}</strong> · אישור רשות: <strong>${approvalText(r)}</strong></div>
+      </a>`).join('')}</div>` : '<div class="card empty">אין מבנים במערכת.</div>'}`;
+}
+
+async function municipalFormView(id) {
+  setNav('municipal'); loading();
+  const b = await api('GET', '/municipal/buildings/' + id);
+  const a = b.approval || {};
+  app.innerHTML = `<p><a href="#/municipal" style="color:var(--primary);text-decoration:none">→ חזרה לפורטל רשויות מקומיות</a></p>
+    <h2>מוכנות תשתיות – ${esc(b.address)}</h2>
+    <form id="mf" class="card" novalidate>
+      <p class="meta" style="margin-top:0">יישוב: ${esc(b.settlement || '—')} · סטטוס טיפול: ${badge(b.status)}</p>
+      <div class="field">
+        ${META.municipalChecks.map((c, i) => `<label class="check" style="${i ? 'margin-top:8px' : ''}"><input type="checkbox" name="${c.key}" ${a[c.key] ? 'checked' : ''}> ${esc(c.label)}</label>`).join('')}</div>
+      <div class="field"><label for="notes">הערות הרשות המקומית</label>
+        <textarea id="notes" name="notes" rows="4" maxlength="1000">${esc(a.notes || '')}</textarea><div class="error"></div></div>
+      <div class="field"><label>אישור רשות מקומית</label>
+        <label class="check"><input type="radio" name="approved" value="true" ${a.approved === true ? 'checked' : ''}> כן</label>
+        <label class="check" style="margin-top:6px"><input type="radio" name="approved" value="false" ${a.approved === false ? 'checked' : ''}> לא</label>
+        <div class="error"></div></div>
+      <div class="actions"><button class="btn" id="msave">${b.hasRecord ? 'עדכון' : 'שמירה'}</button><a class="btn ghost" href="#/municipal">ביטול</a></div>
+    </form>`;
+  const form = document.getElementById('mf');
+  form.querySelectorAll('input[type=radio]').forEach((r) => r.classList.add('radio'));
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    const chosen = form.querySelector('input[name=approved]:checked');
+    const body = { notes: form.notes.value, approved: chosen ? chosen.value === 'true' : undefined };
+    META.municipalChecks.forEach((c) => (body[c.key] = form[c.key].checked));
+    const btn = document.getElementById('msave'); btn.disabled = true;
+    try {
+      await api('PUT', `/municipal/buildings/${id}/approval`, body);
+      toast('נתוני הרשות המקומית נשמרו ✓'); location.hash = '#/municipal';
+    } catch (err) {
+      const f = err.fields || {};
+      form.notes.closest('.field').querySelector('.error').textContent = f.notes || '';
+      const radioErr = form.querySelector('input[name=approved]').closest('.field');
+      radioErr.classList.toggle('invalid', !!f.approved); radioErr.querySelector('.error').textContent = f.approved || '';
+      toast(err.message, true); btn.disabled = false;
+    }
+  };
+}
+
+// ---------- Staff: notifications center ----------
+async function notificationsView() {
+  setNav('notifications'); loading();
+  const [rows, { mode, modes }] = await Promise.all([api('GET', '/notification-center'), api('GET', '/notification-center/mode')]);
+  app.innerHTML = `<h2>מרכז הודעות <span class="meta" style="color:var(--muted);font-size:16px">(${rows.length})</span></h2>
+    <div class="card" style="padding:12px 16px;margin-bottom:16px;display:flex;flex-wrap:wrap;align-items:center;gap:10px">
+      <label for="mockMode" style="margin:0">מצב שרת ההודעות (סימולציה):</label>
+      <select id="mockMode" style="width:auto">${Object.entries(modes).map(([k, v]) => `<option value="${k}" ${k === mode ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select>
+    </div>
+    ${rows.length ? `<div class="card" style="padding:0;overflow-x:auto"><table class="tbl">
+      <thead><tr><th>Message ID</th><th>Building ID</th><th>כתובת המבנה</th><th>כתובת המייל</th><th>Subject</th><th>Date &amp; Time</th><th>Status</th><th>idempotencyKey</th></tr></thead>
+      <tbody>${rows.map((r) => `<tr>
+        <td dir="ltr" class="mono">${esc(r.messageId)}</td><td dir="ltr" class="mono">${esc(r.buildingId)}</td>
+        <td>${esc(r.address)}</td><td dir="ltr">${esc(r.email)}</td><td>${esc(r.subject)}</td>
+        <td dir="ltr" style="white-space:nowrap">${esc(new Date(r.dateTime).toLocaleString('he-IL'))}</td>
+        <td><span class="badge ${r.status === 'SENT' ? 'REHAB_COMPLETED' : 'FAILED'}">${esc(r.status)}</span></td>
+        <td dir="ltr" class="mono">${esc(r.idempotencyKey || '')}</td></tr>`).join('')}</tbody>
+    </table></div>` : '<div class="card empty"><div class="big">📨</div><p>עדיין לא נשלחו הודעות.</p></div>'}`;
+  document.getElementById('mockMode').onchange = async (e) => {
+    try { await api('PUT', '/notification-center/mode', { mode: e.target.value }); toast('מצב שרת ההודעות עודכן'); }
+    catch (err) { toast(err.message, true); }
+  };
+}
+
+// ---------- Staff: settlement processes ----------
+const PROCESS_LABEL = { PROCESSING: 'PROCESSING', COMPLETED: 'COMPLETED' };
+async function processesView() {
+  setNav('processes'); loading();
+  const draw = (rows) => {
+    app.innerHTML = `<h2>Settlement Processes <span class="meta" style="color:var(--muted);font-size:16px">(${rows.length})</span></h2>
+      ${rows.length ? `<div class="card" style="padding:0;overflow-x:auto"><table class="tbl" style="min-width:0">
+        <thead><tr><th>Settlement</th><th>Started By</th><th>Started At</th><th>Completed At</th><th>Status</th></tr></thead>
+        <tbody>${rows.map((p) => `<tr>
+          <td>${esc(p.settlementName)}</td><td>${esc(p.startedBy)}</td>
+          <td style="white-space:nowrap">${esc(new Date(p.startedAt).toLocaleString('he-IL'))}</td>
+          <td style="white-space:nowrap">${p.completedAt ? esc(new Date(p.completedAt).toLocaleString('he-IL')) : '—'}</td>
+          <td><span class="badge ${p.status === 'COMPLETED' ? 'REHAB_COMPLETED' : 'IN_REVIEW'}">${esc(PROCESS_LABEL[p.status] || p.status)}</span></td></tr>`).join('')}</tbody>
+      </table></div>` : '<div class="card empty"><div class="big">🗂️</div><p>עדיין לא הופעל תהליך הפקה ליישוב.</p></div>'}`;
+  };
+  draw(await api('GET', '/settlement-processes'));
+  // a running process turns into COMPLETED without reloading the page
+  listTimer = setInterval(async () => { try { draw(await api('GET', '/settlement-processes')); } catch {} }, 4000);
+}
+
+// ---------- Staff: system health ----------
+async function healthView() {
+  setNav('health'); loading();
+  const secs = (ms) => (ms === null ? '—' : `${(ms / 1000).toFixed(1)} sec`);
+  const tile = (label, value, hint) => `<div class="tile"><div class="n">${value}</div><div class="l">${label}</div>${hint ? `<div class="l" style="font-size:12px;margin-top:4px">${hint}</div>` : ''}</div>`;
+  const draw = (m) => {
+    app.innerHTML = `<h2>System Health</h2>
+      <div class="card summary"><h3 style="margin:0 0 12px">Settlement Processes</h3><div class="tiles">
+        ${tile('Completed', m.settlementProcesses.completed)}
+        ${tile('Processing', m.settlementProcesses.processing)}</div></div>
+      <div class="card summary"><h3 style="margin:0 0 12px">Notifications</h3><div class="tiles">
+        ${tile('Successful', m.notifications.successful, 'הודעות שנשלחו למשפחות')}
+        ${tile('Failed', m.notifications.failed, 'נכשלו גם אחרי כל הניסיונות')}
+        ${tile('Retry Count', m.notifications.retryCount, 'ניסיונות חוזרים')}</div></div>
+      <div class="card summary"><h3 style="margin:0 0 12px">Performance</h3><div class="tiles">
+        ${tile('Average Settlement Duration', secs(m.performance.averageSettlementDurationMs), 'תהליכים שהסתיימו')}</div></div>
+      <p class="hint">מתעדכן אוטומטית · חושב ב-${esc(new Date(m.calculatedAt).toLocaleTimeString('he-IL'))}</p>`;
+  };
+  draw(await api('GET', '/system-health'));
+  listTimer = setInterval(async () => { try { draw(await api('GET', '/system-health')); } catch {} }, 5000);
+}
+
+// ---------- Staff: details ----------
+async function detailView(id) {
+  setNav('staff'); loading();
+  const r = await api('GET', '/reports/' + id);
+  app.innerHTML = `<p><a href="#/staff" style="color:var(--primary);text-decoration:none">→ חזרה לרשימת הפניות</a></p>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:16px">
+        <h2 style="margin:0">${esc(r.damageType)}</h2><span id="badge">${badge(r.status)}</span>
+      </div>
+      <div id="rehab"></div>
+      <dl>
+        <dt>מזהה פנייה</dt><dd dir="ltr" style="font-family:monospace;font-size:13px;text-align:right">${esc(r.id)}</dd>
+        <dt>שם המדווח</dt><dd>${esc(r.reporterName)}</dd>
+        <dt>כתובת</dt><dd>${esc(r.address)}</dd>
+        <dt>אימייל המשפחה</dt><dd dir="ltr" style="text-align:right">${esc(r.familyEmail ?? '—')}</dd>
+        <dt>מספר דירות במבנה</dt><dd>${esc(r.apartmentCount ?? '—')}</dd>
+        <dt>תמונות נזק</dt><dd>${r.hasDamagePhotos ? 'קיימות' : 'לא קיימות'}</dd>
+        <dt>דו"ח מהנדס</dt><dd>${r.hasEngineerReport ? 'קיים' : 'לא קיים'}</dd>
+        <dt>בדיקת זכאות</dt><dd id="elig"></dd>
+        <dt>אישור חברתי</dt><dd id="soc"></dd>
+        <dt>תיאור</dt><dd>${esc(r.description)}</dd>
+        ${r.createdAt ? `<dt>הוגשה</dt><dd>${esc(new Date(r.createdAt).toLocaleString('he-IL'))}</dd>` : ''}
+      </dl>
+      <div style="border-top:1px solid var(--border);padding-top:16px;margin-bottom:16px">
+        <h3 style="margin:0 0 10px">הערכת שמאי</h3>
+        ${r.assessment ? `<dl style="margin:0">
+          <dt>דרגת נזק</dt><dd>${esc(META.damageLevels.find((l) => l.value === r.assessment.damageLevel)?.label || r.assessment.damageLevel)}</dd>
+          <dt>תאריך בדיקה</dt><dd>${esc(new Date(r.assessment.inspectionDate).toLocaleDateString('he-IL'))}</dd>
+          <dt>בדיקה חוזרת</dt><dd>${r.assessment.requiresReinspection ? 'נדרשת' : 'לא נדרשת'}</dd>
+          <dt>הערות שמאי</dt><dd>${esc(r.assessment.notes || '—')}</dd></dl>` : '<span style="color:var(--muted)">טרם הוזנה הערכת שמאי.</span>'}
+      </div>
+      <div style="border-top:1px solid var(--border);padding-top:16px;margin-bottom:16px">
+        <h3 style="margin:0 0 10px">אישור רשות מקומית</h3>
+        ${r.municipalApproval ? `<dl style="margin:0">
+          ${META.municipalChecks.map((c) => `<dt>${esc(c.label)}</dt><dd>${r.municipalApproval[c.key] ? 'כן' : 'לא'}</dd>`).join('')}
+          <dt>הערות הרשות</dt><dd>${esc(r.municipalApproval.notes || '—')}</dd>
+          <dt>אישור רשות מקומית</dt><dd><strong>${r.municipalApproval.approved ? 'כן' : 'לא'}</strong></dd></dl>` : '<span style="color:var(--muted)">טרם התקבל אישור/עדכון מהרשות המקומית.</span>'}
+      </div>
+      <div style="border-top:1px solid var(--border);padding-top:16px;margin-bottom:16px">
+        <h3 style="margin:0 0 10px">היסטוריית פעולות</h3>
+        <div id="history"><span style="color:var(--muted)">טוען…</span></div>
+      </div>
+      <div class="status-box">
+        <strong>שינוי סטטוס:</strong>
+        <div class="seg" id="seg">
+          ${STATUSES.map((s) => `<button data-s="${s}" class="${s === r.status ? 'on' : ''}">${LABEL[s]}</button>`).join('')}
+        </div>
+      </div>
+      <div class="status-box" style="margin-top:16px">
+        <label class="check"><input type="checkbox" id="eligChk" ${r.eligibilityChecked ? 'checked' : ''}> בוצעה בדיקת זכאות</label>
+      </div>
+      <div class="status-box" style="margin-top:16px">
+        <label class="check"><input type="checkbox" id="socChk" ${r.socialApproval ? 'checked' : ''}> קיים אישור חברתי</label>
+      </div>
+      <div class="status-box" style="margin-top:16px">
+        <button class="btn" id="budgetBtn">פתח בקשת תקציב</button>
+        <button class="btn ghost" id="approveBtn" hidden>אשר בקשת תקציב</button>
+        <span id="budgetMsg" class="hint" style="margin:0"></span>
+      </div>
+    </div>`;
+  // Rendering only: every rule (what is missing, whether a budget request may be opened) comes from the server services.
+  const renderRehab = () => {
+    const rehab = r.rehabilitation, bud = r.budget;
+    document.getElementById('rehab').innerHTML = rehab.canStart
+      ? `<div class="rehab ready">ניתן להתחיל שיקום</div>`
+      : `<div class="rehab missing">חסר מידע להתחלת שיקום<small>חסר: ${rehab.missing.map(esc).join(', ')}</small></div>`;
+    document.getElementById('elig').textContent = r.eligibilityChecked ? 'בוצעה' : 'לא בוצעה';
+    document.getElementById('soc').textContent = r.socialApproval ? 'קיים' : 'לא קיים';
+    const req = bud.request;
+    document.getElementById('budgetBtn').disabled = !bud.canOpenRequest;
+    document.getElementById('approveBtn').hidden = !(req && req.status === 'OPEN');
+    document.getElementById('budgetMsg').textContent = req
+      ? (req.status === 'APPROVED' ? 'בקשת התקציב אושרה' : 'בקשת התקציב נפתחה וממתינה לאישור')
+      : (bud.blockers.length ? `לא ניתן לפתוח בקשת תקציב – ${bud.blockers.join('; ')}` : '');
+  };
+  // Run a server action and replace the local report with the server's fresh view.
+  const act = async (fn, okMsg) => {
+    try {
+      Object.assign(r, await fn());
+      renderRehab();
+      if (okMsg) toast(okMsg);
+      return true;
+    } catch (err) {
+      toast(err.message, true);
+      if (err.status === 401) needLogin();
+      return false;
+    }
+  };
+  // History of actions on this building (who did what, when) - newest first.
+  const loadHistory = async () => {
+    const box = document.getElementById('history');
+    try {
+      const rows = await api('GET', `/audit?entityType=BUILDING&entityId=${encodeURIComponent(id)}`);
+      box.innerHTML = rows.length ? `<div style="overflow-x:auto"><table class="tbl" style="min-width:0"><thead><tr><th>תאריך ושעה</th><th>משתמש</th><th>פעולה</th></tr></thead><tbody>${rows.map((r) => `<tr>
+        <td style="white-space:nowrap">${esc(new Date(r.timestamp).toLocaleString('he-IL'))}</td><td>${esc(r.userName)}</td><td>${esc(r.actionLabel)}</td></tr>`).join('')}</tbody></table></div>`
+        : '<span style="color:var(--muted)">עדיין לא בוצעו פעולות מתועדות במבנה זה.</span>';
+    } catch (err) { box.textContent = err.message; }
+  };
+  loadHistory();
+  document.getElementById('budgetBtn').onclick = async (e) => {
+    e.target.disabled = true;
+    if (await act(() => api('POST', `/reports/${id}/budget-request`), 'בקשת התקציב נפתחה ✓')) { loadHistory(); return; }
+    renderRehab();
+  };
+  document.getElementById('approveBtn').onclick = (e) => {
+    e.target.disabled = true;
+    act(() => api('POST', `/reports/${id}/budget-request/approve`), 'בקשת התקציב אושרה ✓').then(renderRehab);
+  };
+  document.getElementById('socChk').onchange = async (e) => {
+    const box = e.target; box.disabled = true;
+    if (!(await act(() => api('PATCH', `/reports/${id}/social-approval`, { socialApproval: box.checked })))) box.checked = !box.checked;
+    box.disabled = false;
+  };
+  document.getElementById('eligChk').onchange = async (e) => {
+    const box = e.target; box.disabled = true;
+    if (!(await act(() => api('PATCH', `/reports/${id}/eligibility`, { eligibilityChecked: box.checked })))) box.checked = !box.checked;
+    box.disabled = false;
+  };
+  renderRehab();
+  document.getElementById('seg').onclick = async (e) => {
+    const s = e.target.dataset.s;
+    if (!s || s === r.status) return;
+    const btns = document.querySelectorAll('#seg button');
+    btns.forEach((b) => (b.disabled = true));
+    try {
+      const updated = await api('PATCH', `/reports/${id}/status`, { status: s });
+      r.status = updated.status;
+      btns.forEach((b) => b.classList.toggle('on', b.dataset.s === r.status));
+      document.getElementById('badge').innerHTML = badge(r.status);
+      toast(`הסטטוס שונה ל"${LABEL[r.status]}"`);
+    } catch (err) {
+      toast(err.message, true);
+      if (err.status === 401) { needLogin(); return; }
+    }
+    btns.forEach((b) => (b.disabled = false));
+  };
+}
+
+let listTimer;
+async function route() {
+  clearInterval(listTimer);
+  const h = location.hash.replace(/^#\/?/, '');
+  window.scrollTo(0, 0);
+  renderNav();
+  try {
+    if (!META.damageTypes.length) {
+      META = await api('GET', '/meta');
+      STATUSES = META.statuses.map((s) => s.value);
+      LABEL = Object.fromEntries(META.statuses.map((s) => [s.value, s.label]));
+    }
+    if (!h) return homeView();
+    if (h === 'new') return createView();
+    if (h.startsWith('submitted/')) return submittedView(h.slice(10));
+    if (h === 'staff/login') return loginView();
+    if (/^(municipal|assessors|staff)(\/|$)/.test(h)) {
+      if (!getToken()) return needLogin();
+      if (!ME) ME = await api('GET', '/auth/me'); // restores the logged-in user after a page refresh
+      renderNav();
+    }
+    if (h === 'municipal') return await municipalListView();
+    if (h.startsWith('municipal/')) return await municipalFormView(h.slice(10));
+    if (h === 'assessors') return await assessorsListView();
+    if (h.startsWith('assessors/')) return await assessorFormView(h.slice(10));
+    if (h === 'staff' || h.startsWith('staff/')) {
+      if (h === 'staff/notifications') return await notificationsView();
+      if (h === 'staff/processes') return await processesView();
+      if (h === 'staff/health') return await healthView();
+      return h === 'staff' ? await listView() : await detailView(h.slice(6));
+    }
+    homeView();
+  } catch (err) {
+    if (err.status === 401) return needLogin();
+    setNav('');
+    app.innerHTML = `<div class="card empty"><div class="big">⚠️</div><p>${esc(err.message)}</p>
+      <a class="btn" href="#/">חזרה לדף הבית</a></div>`;
+  }
+}
+window.addEventListener('hashchange', route);
+route();
+</script>
+</body>
+</html>
